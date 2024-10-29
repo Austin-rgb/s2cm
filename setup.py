@@ -11,7 +11,14 @@ setup(
     url="https://github.com/Austin-rgb/s2cm",
     packages=find_packages(),
     download_url="https://github.com/Austin-rgb/s2cm/releases",
-    install_requires=["requests", "flask", "flask-socketio", "socketio"],
+    install_requires=[
+        "bcrypt",
+        "peewee",
+        "requests",
+        "flask",
+        "flask-socketio",
+        "socketio",
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
