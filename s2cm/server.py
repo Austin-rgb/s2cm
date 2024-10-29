@@ -2,7 +2,50 @@ import os
 import secrets
 
 from flask import Flask, request
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room
+import json
+import bcrypt
+
+from peewee import *
+from datetime import datetime
+
+# Initialize the SQLite database (replace 'db.sqlite3' with your DB path if needed)
+db = SqliteDatabase("db.sqlite3")
+
+
+class BaseModel(Model):
+    class Meta:
+        database = db
+
+
+class User(BaseModel):
+    username = CharField(unique=True, max_length=50)
+    password = CharField(max_length=100)
+    sessions = IntegerField(default=0)  # To track the number of sessions for each user
+
+    def set_password(self, raw_password):
+        """Hash the password and store it."""
+        # Generate a salt and hash the password
+        self.password = bcrypt.hashpw(
+            raw_password.encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8")
+
+    def check_password(self, raw_password):
+        """Check a plain password against the stored hashed password."""
+        return bcrypt.checkpw(
+            raw_password.encode("utf-8"), self.password.encode("utf-8")
+        )
+
+
+class Session(BaseModel):
+    sessionId = AutoField()
+    created_at = DateTimeField(default=datetime.now)
+    user = ForeignKeyField(User, backref="user_sessions", on_delete="CASCADE")
+
+
+# Create the tables
+db.connect()
+db.create_tables([User, Session])
 
 
 def _using_default(name, value):
@@ -31,7 +74,34 @@ app.config["SECRET_KEY"] = SECRET_KEY
 
 http_sessions = {}
 ws_sessions = {}
+users = {}
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+
+# Event for joining a room
+@socketio.on("join")
+def handle_join(data):
+    username = data["username"]
+    room = data["room"]
+    join_room(room)
+    emit("message", {"msg": f"{username} has joined the room."}, room=room)
+
+
+# Event for leaving a room
+@socketio.on("leave")
+def handle_leave(data):
+    username = data["username"]
+    room = data["room"]
+    leave_room(room)
+    emit("message", {"msg": f"{username} has left the room."}, room=room)
+
+
+# Event for sending a message
+@socketio.on("send_message")
+def handle_send_message(data):
+    room = data["room"]
+    message = data["message"]
+    emit("message", {"msg": message}, room=room)
 
 
 @app.route("/")
@@ -39,12 +109,25 @@ def index():
     return "WebSocket Server is Running"
 
 
+@socketio.on("set_username")
+def set_username(msg):
+    username = msg.get("username")
+    password = msg.get("password")
+    user = User.create(
+        username=username,
+    )
+
+
 @app.route("/send", methods=["POST"])
 def send():
     user = request.form.get("username")
     message = request.form.get("message")
+    payload = {}
+    payload["message"] = message
+    payload["user"] = users[request.sid]
     user_http_session = http_sessions.get(user)
     user_sess = ws_sessions.get(user_http_session)
+    message = json.dumps(payload)
     socketio.emit("message", message, to=user_sess)
     return "True"
 
