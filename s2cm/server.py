@@ -1,7 +1,8 @@
-from flask import Flask, request
-from flask_socketio import SocketIO, emit
 import os
 import secrets
+
+from flask import Flask, request
+from flask_socketio import SocketIO, emit
 
 
 def _using_default(name, value):
