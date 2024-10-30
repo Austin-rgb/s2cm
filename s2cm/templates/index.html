@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Server to client messenger</title>
+    <link rel="stylesheet" href="/static/bootstrap.min.css">
+    <script src="/static/bootstrap.min.js"></script>
+    <script src="/static/s2cm.client.js"></script>
+    <style>
+        div.invisible {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="login" class="container">
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" id="email" aria-describedby="emailHelpId"
+                placeholder="abc@mail.com" />
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" name="password" id="password" placeholder="" />
+        </div>
+        <button onclick="login()">Login</button><button onclick="register()">Register</button>
+        <script>
+            function login() {
+                var username = document.getElementById('email').value
+                var password = document.getElementById('password').value
+                client.emit("login", { username: username, password: password })
+            }
+            function register() {
+                var username = document.getElementById('email').value
+                var password = document.getElementById('password').value
+                client.emit("register", { username: username, password: password })
+            }
+        </script>
+    </div>
+    </div>
+    <input id="message" placeholder="message">
+    <input id="to" placeholder="to>>">
+    <button onclick="send()">Send</button>
+    <button onclick="send_to()">Send to</button>
+    <div id="messages"></div>
+    <script>
+
+        const client = s2cm_client('http://localhost:5000')
+        const long_session = localStorage.getItem('long_session')
+        if (long_session) {
+            client.emit('login', { long_session: long_session })
+
+        }
+        client.on('message', (msg) => on_messge(msg))
+        client.on('response', (data) => on_response(data))
+        client.on('long_session', (msg) => {
+            localStorage.setItem('long_session', msg)
+            document.getElementById('login').setAttribute('class', 'invisible')
+            console.log('session stored as', localStorage.getItem('long_session'))
+        })
+    </script>
+    <script>
+        const input = document.getElementById('message')
+        const messages = document.getElementById('messages')
+        const target = document.getElementById('to')
+        function add_message(username, message, incoming) {
+            var decorator = '>>'
+            if (incoming) decorator = '<<';
+            var new_message = document.createElement('p')
+            new_message.innerText = `${username} ${decorator} ${message}`
+            messages.appendChild(new_message)
+        }
+        function on_messge(params) {
+            add_message('', params)
+        }
+        function on_response(data) {
+            console.log('received message', data)
+            var username = data['from']
+            var message = data['message']
+            add_message(username, message, true)
+        }
+        function send() {
+            console.log(`sending ${input.value}`)
+            client.emit('message', input.value)
+        }
+        function send_to() {
+            console.log(`sending to ${target.value}`)
+            add_message(target.value, input.value)
+            client.emit('message_user', { username: target.value, message: input.value })
+        }
+
+    </script>
+</body>
+
+</html>

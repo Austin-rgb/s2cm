@@ -1,13 +1,12 @@
+import json
 import os
 import secrets
+import traceback
 
-from flask import Flask, request
-from flask_socketio import SocketIO, emit, join_room, leave_room
-import json
 import bcrypt
-
+from flask import Flask, request, render_template
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from peewee import *
-from datetime import datetime
 
 # Initialize the SQLite database (replace 'db.sqlite3' with your DB path if needed)
 db = SqliteDatabase("db.sqlite3")
@@ -20,32 +19,33 @@ class BaseModel(Model):
 
 class User(BaseModel):
     username = CharField(unique=True, max_length=50)
-    password = CharField(max_length=100)
-    sessions = IntegerField(default=0)  # To track the number of sessions for each user
+    password = CharField(
+        max_length=100,
+    )
+    session = CharField(max_length=32, null=True)
+    long_session = CharField(max_length=64, null=True)
 
-    def set_password(self, raw_password):
+    @staticmethod
+    def set_password(raw_password:str):
         """Hash the password and store it."""
         # Generate a salt and hash the password
-        self.password = bcrypt.hashpw(
-            raw_password.encode("utf-8"), bcrypt.gensalt()
-        ).decode("utf-8")
-
-    def check_password(self, raw_password):
-        """Check a plain password against the stored hashed password."""
-        return bcrypt.checkpw(
-            raw_password.encode("utf-8"), self.password.encode("utf-8")
+        return bcrypt.hashpw(raw_password.encode("utf-8"), bcrypt.gensalt()).decode(
+            "utf-8"
         )
 
+    def check_password(self, raw_password:str):
+        """Check a plain password against the stored hashed password."""
+        return bcrypt.checkpw(raw_password.encode('utf-8'), bytes(self.password,'utf-8'))
 
-class Session(BaseModel):
-    sessionId = AutoField()
-    created_at = DateTimeField(default=datetime.now)
-    user = ForeignKeyField(User, backref="user_sessions", on_delete="CASCADE")
 
 
 # Create the tables
 db.connect()
-db.create_tables([User, Session])
+db.create_tables(
+    [
+        User,
+    ]
+)
 
 
 def _using_default(name, value):
@@ -68,20 +68,18 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 if not SECRET_KEY:
     SECRET_KEY = secrets.token_hex(32)
 
-
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY
 
-http_sessions = {}
-ws_sessions = {}
-users = {}
+
+active_users = {}
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 
 # Event for joining a room
 @socketio.on("join")
 def handle_join(data):
-    username = data["username"]
+    username = active_users.get(request.sid)
     room = data["room"]
     join_room(room)
     emit("message", {"msg": f"{username} has joined the room."}, room=room)
@@ -106,30 +104,80 @@ def handle_send_message(data):
 
 @app.route("/")
 def index():
-    return "WebSocket Server is Running"
+    return render_template('index.html')
 
 
-@socketio.on("set_username")
+@socketio.on("register")
 def set_username(msg):
     username = msg.get("username")
     password = msg.get("password")
-    user = User.create(
-        username=username,
-    )
+    try:
+        user = User.create(username=username, password=User.set_password(password))
+        user.save()
+
+    except Exception as e:
+        print(e)
 
 
-@app.route("/send", methods=["POST"])
-def send():
-    user = request.form.get("username")
-    message = request.form.get("message")
+@socketio.on("login")
+def login(msg):
+    username = msg.get("username")
+    password = msg.get("password")
+    long_session = msg.get('long_session')
+
+    if username and password:
+        try:
+            user = User.get(username=username)
+            if user.check_password(password):
+                user.session = request.sid
+                generated_session = secrets.token_hex(96)
+                user.long_session = generated_session
+                user.save()
+                emit('long_session',generated_session)
+                print(user.username,'logged in successfully')
+            else:
+                print(username,'login password failed')
+
+        except Exception as e:
+            emit("error", str(e))
+            traceback.print_exception(e)
+
+    elif long_session:
+        try:
+            user = User.get(long_session=long_session)
+            user.session = request.sid
+            user.save()
+            print(user.username,'logged in successfully')
+
+        except Exception as e:
+            emit("error", str(e))
+            traceback.print_exception(e)
+    
+    else:
+        print(f'login failed with username: {username} and password: {password}')
+
+
+@socketio.on("message_user")
+def send(msg):
+    username = msg.get("username")
+    message = msg.get("message")
     payload = {}
     payload["message"] = message
-    payload["user"] = users[request.sid]
-    user_http_session = http_sessions.get(user)
-    user_sess = ws_sessions.get(user_http_session)
-    message = json.dumps(payload)
-    socketio.emit("message", message, to=user_sess)
-    return "True"
+    this_user = User.get(session=request.sid)
+    payload["from"] = this_user.username
+    try:
+        user = User.get(username=username)
+        socketio.emit("response", payload, to=user.session)
+        print(f'sent message: {message}, to: {username}')
+    except Exception as e:
+        emit("error", str(e))
+
+
+@socketio.on("messag_group")
+def message_group(data):
+    group = data.get("group")
+    msg = data.get("message")
+    emit("message", msg, to=group)
 
 
 @socketio.on("connect")
@@ -146,23 +194,7 @@ def handle_connect():
 @socketio.on("message")
 def handle_message(msg):
     print(f"Received message from {request.sid}: {msg}")
-
-
-@socketio.on("set_ws")
-def set_http_sess(data):
-    http_sess = data.get("http_sess")
-    ws_sessions[http_sess] = request.sid
-    print(f"set_ws; {http_sess}:{request.sid}")
-
-
-@app.route("/set_username", methods=["POST"])
-def set_username():
-    username = request.form.get("username")
-    http_sess = request.form.get("session")
-    http_sessions[username] = http_sess
-    result = f"username:{username},http_sess:{http_sess}"
-    print(result)
-    return result
+    emit('message',msg)
 
 
 @socketio.on("disconnect")
@@ -172,7 +204,10 @@ def handle_disconnect():
 
 
 def run(host=HOST, port=PORT):
-    socketio.run(app, host=host, port=port)
+    """
+    Run s2cm server
+    """
+    socketio.run(app, host=host, port=port, debug=True)
 
 
 if __name__ == "__main__":

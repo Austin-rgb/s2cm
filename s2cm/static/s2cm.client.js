@@ -21,12 +21,12 @@ function getCookie(name) {
     return null; // Return null if the cookie is not found
 }
 
-const s2cm_client = (server_addr, identity_cookie_name) => {
+const s2cm_client = (server_addr,) => {
     const notificationSocket = io(server_addr);  // Update URL if needed
 
     notificationSocket.on('connect', () => {
         console.log('Connected to server');
-        notificationSocket.emit("set_ws", { http_sess: getCookie(identity_cookie_name) })
+
     })
 
     notificationSocket.on('disconnect', () => {
