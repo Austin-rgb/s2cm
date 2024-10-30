@@ -154,7 +154,11 @@ def login(msg):
             traceback.print_exception(e)
     
     else:
-        print(f'login failed with username: {username} and password: {password}')
+        if password:
+            print(f'login failed with no-username')
+
+        else:
+            print(f'login failed with username: {username}')
 
 
 @socketio.on("message_user")
