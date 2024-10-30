@@ -1,4 +1,6 @@
 # s2cm
+![logo](https://github.com/Austin-rgb/s2cm/blob/main/Screenshot_20241030_213712_Chrome.jpg)
+
 Server to client messenger for notifying users in a client server model
 ## Installation 
 you can install latest stable via pip
