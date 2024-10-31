@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="s2cm",
-    version="0.1.0",
+    version="0.2.0",
     description="Server to cliet messenger, for notifying clients in a client-server models",
     author="Austine Ochieng",
     author_email="prof.odhiambo.ostinel@gmail.com",
@@ -17,7 +17,6 @@ setup(
         "requests",
         "flask",
         "flask-socketio",
-        "socketio",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
