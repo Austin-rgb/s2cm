@@ -18,8 +18,8 @@ pip install .
 ## Usage
 ### start the server
 ```python
-from s2cm import server
-server.run()
+from s2cm.server import socketio, app
+socketio.run(app,port=5000)
 ```
 ### connect from client 
 For demonstration we connect 2 python clients
