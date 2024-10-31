@@ -224,4 +224,4 @@ if __name__ == "__main__":
         PORT = 5000
         _using_default("port", PORT)
 
-    socketio.run(app, host=HOST, port=PORT, debug=True)
+    socketio.run(app, host=HOST, port=PORT)
