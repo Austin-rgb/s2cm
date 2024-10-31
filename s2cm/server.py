@@ -1,4 +1,9 @@
-import json
+"""
+S2cm
+Server to client messenger 
+A small python code to help you notify or message your clients from the server
+"""
+
 import os
 import secrets
 import traceback
@@ -6,18 +11,27 @@ import traceback
 import bcrypt
 from flask import Flask, request, render_template
 from flask_socketio import SocketIO, emit, join_room, leave_room
-from peewee import *
+from peewee import SqliteDatabase, Model, CharField, DoesNotExist
+
 
 # Initialize the SQLite database (replace 'db.sqlite3' with your DB path if needed)
 db = SqliteDatabase("db.sqlite3")
 
 
 class BaseModel(Model):
+    """
+    Base class for providing the database instance
+    """
+
     class Meta:
+        """Expose the database instance to be used"""
+
         database = db
 
 
 class User(BaseModel):
+    """Orm class for s2cm user"""
+
     username = CharField(unique=True, max_length=50)
     password = CharField(
         max_length=100,
@@ -26,17 +40,18 @@ class User(BaseModel):
     long_session = CharField(max_length=64, null=True)
 
     @staticmethod
-    def set_password(raw_password:str):
+    def set_password(raw_password: str):
         """Hash the password and store it."""
         # Generate a salt and hash the password
         return bcrypt.hashpw(raw_password.encode("utf-8"), bcrypt.gensalt()).decode(
             "utf-8"
         )
 
-    def check_password(self, raw_password:str):
+    def check_password(self, raw_password: str):
         """Check a plain password against the stored hashed password."""
-        return bcrypt.checkpw(raw_password.encode('utf-8'), bytes(self.password,'utf-8'))
-
+        return bcrypt.checkpw(
+            raw_password.encode("utf-8"), bytes(self.password, "utf-8")
+        )
 
 
 # Create the tables
@@ -48,21 +63,15 @@ db.create_tables(
 )
 
 
-def _using_default(name, value):
+def _using_default(name: str, value):
     print(
-        f'using default {name}: {value}\n You can modify by doing "export {name}=[your.prefered.{name}]"'
+        f"""
+using default {name}: {value}
+You can modify by doing "export {name.capitalize()}=[your.prefered.{name}]"'
+  
+"""
     )
 
-
-HOST = os.environ.get("HOST")
-if not HOST:
-    HOST = "127.0.0.1"
-    _using_default("host", HOST)
-
-PORT = os.environ.get("PORT")
-if not PORT:
-    PORT = 5000
-    _using_default("port", PORT)
 
 SECRET_KEY = os.environ.get("SECRET_KEY")
 if not SECRET_KEY:
@@ -79,6 +88,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Event for joining a room
 @socketio.on("join")
 def handle_join(data):
+    """Adds user to a room"""
     username = active_users.get(request.sid)
     room = data["room"]
     join_room(room)
@@ -88,42 +98,38 @@ def handle_join(data):
 # Event for leaving a room
 @socketio.on("leave")
 def handle_leave(data):
+    """Remove user from a room"""
     username = data["username"]
     room = data["room"]
     leave_room(room)
     emit("message", {"msg": f"{username} has left the room."}, room=room)
 
 
-# Event for sending a message
-@socketio.on("send_message")
-def handle_send_message(data):
-    room = data["room"]
-    message = data["message"]
-    emit("message", {"msg": message}, room=room)
-
-
 @app.route("/")
 def index():
-    return render_template('index.html')
+    """S2cm http home page"""
+    return render_template("index.html")
 
 
 @socketio.on("register")
 def set_username(msg):
+    """Register user"""
     username = msg.get("username")
     password = msg.get("password")
     try:
         user = User.create(username=username, password=User.set_password(password))
         user.save()
 
-    except Exception as e:
+    except DoesNotExist as e:
         print(e)
 
 
 @socketio.on("login")
 def login(msg):
+    """Create a session for user"""
     username = msg.get("username")
     password = msg.get("password")
-    long_session = msg.get('long_session')
+    long_session = msg.get("long_session")
 
     if username and password:
         try:
@@ -133,12 +139,12 @@ def login(msg):
                 generated_session = secrets.token_hex(96)
                 user.long_session = generated_session
                 user.save()
-                emit('long_session',generated_session)
-                print(user.username,'logged in successfully')
+                emit("long_session", generated_session)
+                print(user.username, "logged in successfully")
             else:
-                print(username,'login password failed')
+                print(username, "login password failed")
 
-        except Exception as e:
+        except DoesNotExist as e:
             emit("error", str(e))
             traceback.print_exception(e)
 
@@ -147,22 +153,23 @@ def login(msg):
             user = User.get(long_session=long_session)
             user.session = request.sid
             user.save()
-            print(user.username,'logged in successfully')
+            print(user.username, "logged in successfully")
 
-        except Exception as e:
+        except DoesNotExist as e:
             emit("error", str(e))
             traceback.print_exception(e)
-    
+
     else:
         if password:
-            print(f'login failed with no-username')
+            print("login failed with no-username")
 
         else:
-            print(f'login failed with username: {username}')
+            print(f"login failed with username: {username}")
 
 
 @socketio.on("message_user")
 def send(msg):
+    """Send a message from one user to another"""
     username = msg.get("username")
     message = msg.get("message")
     payload = {}
@@ -172,13 +179,14 @@ def send(msg):
     try:
         user = User.get(username=username)
         socketio.emit("response", payload, to=user.session)
-        print(f'sent message: {message}, to: {username}')
-    except Exception as e:
+        print(f"sent message: {message}, to: {username}")
+    except DoesNotExist as e:
         emit("error", str(e))
 
 
-@socketio.on("messag_group")
+@socketio.on("message_group")
 def message_group(data):
+    """Message a group of users"""
     group = data.get("group")
     msg = data.get("message")
     emit("message", msg, to=group)
@@ -186,9 +194,8 @@ def message_group(data):
 
 @socketio.on("connect")
 def handle_connect():
+    """Called when a user is connect"""
     username = request.args.get("username")
-
-    print(f"WebSocket connected: {username} with session ID: {request.sid}")
     emit(
         "response",
         {"message": f"Connected to the WebSocket server! Your username is {username}"},
@@ -197,22 +204,24 @@ def handle_connect():
 
 @socketio.on("message")
 def handle_message(msg):
-    print(f"Received message from {request.sid}: {msg}")
-    emit('message',msg)
+    """Handle 'message' event"""
+    emit("message", msg)
 
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    # Remove the session ID from user_sessions if needed
-    print(f"WebSocket disconnected: {request.sid}")
-
-
-def run(host=HOST, port=PORT):
-    """
-    Run s2cm server
-    """
-    socketio.run(app, host=host, port=port, debug=True)
+    """TODO"""
 
 
 if __name__ == "__main__":
-    run()
+    HOST = os.environ.get("HOST")
+    if not HOST:
+        HOST = "127.0.0.1"
+        _using_default("host", HOST)
+
+    PORT = os.environ.get("PORT")
+    if not PORT:
+        PORT = 5000
+        _using_default("port", PORT)
+
+    socketio.run(app, host=HOST, port=PORT, debug=True)
