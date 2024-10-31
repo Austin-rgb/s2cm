@@ -196,6 +196,8 @@ def message_group(data):
 def handle_connect():
     """Called when a user is connect"""
     username = request.args.get("username")
+    token = request.headers.get("Authorisation")
+    print('token:',token)
     emit(
         "response",
         {"message": f"Connected to the WebSocket server! Your username is {username}"},
