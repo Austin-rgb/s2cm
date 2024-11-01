@@ -9,7 +9,7 @@ import secrets
 import traceback
 
 import bcrypt
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, redirect
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from peewee import SqliteDatabase, Model, CharField, DoesNotExist
 
@@ -111,49 +111,37 @@ def index():
     return render_template("index.html")
 
 
-@socketio.on("register")
-def set_username(msg):
+@app.route("/register",methods=['POST'])
+def set_username():
     """Register user"""
-    username = msg.get("username")
-    password = msg.get("password")
+    username = request.form.get("username")
+    password = request.form.get("password")
     try:
         user = User.create(username=username, password=User.set_password(password))
         user.save()
+        return redirect('/login')
 
     except DoesNotExist as e:
         print(e)
 
 
-@socketio.on("login")
-def login(msg):
+@app.route("/login",methods=['POST'])
+def login():
     """Create a session for user"""
-    username = msg.get("username")
-    password = msg.get("password")
-    long_session = msg.get("long_session")
+    username = request.form.get("username")
+    password = request.form.get("password")
 
     if username and password:
         try:
             user = User.get(username=username)
             if user.check_password(password):
-                user.session = request.sid
                 generated_session = secrets.token_hex(96)
                 user.long_session = generated_session
                 user.save()
-                emit("long_session", generated_session)
                 print(user.username, "logged in successfully")
+                return {'token':generated_session}
             else:
                 print(username, "login password failed")
-
-        except DoesNotExist as e:
-            emit("error", str(e))
-            traceback.print_exception(e)
-
-    elif long_session:
-        try:
-            user = User.get(long_session=long_session)
-            user.session = request.sid
-            user.save()
-            print(user.username, "logged in successfully")
 
         except DoesNotExist as e:
             emit("error", str(e))
@@ -165,6 +153,8 @@ def login(msg):
 
         else:
             print(f"login failed with username: {username}")
+
+        return 'Failed'
 
 
 @socketio.on("message_user")
@@ -195,13 +185,18 @@ def message_group(data):
 @socketio.on("connect")
 def handle_connect():
     """Called when a user is connect"""
-    username = request.args.get("username")
-    token = request.headers.get("Authorisation")
-    print('token:',token)
-    emit(
-        "response",
-        {"message": f"Connected to the WebSocket server! Your username is {username}"},
-    )
+    long_session = request.headers.get("Authorization")
+    print('token:',long_session)
+    if long_session:
+        try:
+            user = User.get(long_session=long_session)
+            user.session = request.sid
+            user.save()
+            print(user.username, "logged in successfully")
+
+        except DoesNotExist as e:
+            emit("error", str(e))
+            traceback.print_exception(e)
 
 
 @socketio.on("message")

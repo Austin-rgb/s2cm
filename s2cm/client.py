@@ -3,6 +3,7 @@ Python client module for s2cm.server
 """
 
 import socketio
+import requests
 
 # Create a Socket.IO client
 sio = socketio.Client()
@@ -36,17 +37,36 @@ def callback():
     print('callback called')
 
 class SCMessenger:
-    def __init__(self, server="localhost:5000"):
-        sio.connect(server)
+    def __init__(self, server="http://localhost:5000", token=None, username=None, password=None):
+        self.server = server
+        self.http_session = requests.Session()
+        self.token = token
+        if self.token:
+            sio.connect(server,headers={'Authorization':self.token})
+
+        elif self.login(username,password):
+            sio.connect(server,headers={'Authorization':self.token})
 
     def send(self, message):
         sio.emit("message", message)
 
     def login(self, username, password):
-        sio.emit("login", {"username": username, "password": password},callback=callback)
+        res = self.http_session.post(f'{self.server}/login',{"username": username, "password": password})
+        json_res = res.json()
+        self.token = json_res.get('token')
+        return self.token
+        
 
-    def register(self, username, password):
-        sio.emit("register", {"username": username, "password": password})
+
+    @staticmethod
+    def register(server:str,username:str, password):
+        res = requests.post(f'{server}/register',{"username": username, "password": password})
+        json_res = res.json()
+        if token:=json_res.get('token'):
+            return token
+
+        else:
+            print('registration failed')
 
     def send_to_user(self, username, message):
         sio.emit("message_user", {"username": username, "message": message})
