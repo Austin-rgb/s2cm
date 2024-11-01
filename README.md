@@ -46,7 +46,6 @@ messenger.send("username2", "hi")
 from s2cm.client import SCMessenger
 
 server_url = "http://localhost:5000" # replace with the address of your server 
-messager = SCMessenger(server_url)
 
 # register
 SCMessenger.register("username2","password2")
