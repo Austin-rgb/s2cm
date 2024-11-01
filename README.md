@@ -1,4 +1,6 @@
 # s2cm
+[![Dependabot Updates](https://github.com/Austin-rgb/s2cm/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/Austin-rgb/s2cm/actions/workflows/dependabot/dependabot-updates)
+
 ![logo](https://github.com/Austin-rgb/s2cm/blob/main/Screenshot_20241030_213712_Chrome.jpg)
 
 Server to client messenger for notifying users in a client server model
