@@ -30,13 +30,15 @@ For demonstration we connect 2 python clients
 from s2cm.client import SCMessenger
 
 server_url = "http://localhost:5000" # replace with the address of your server 
-messager = SCMessenger(server_url)
 
 # register
-messager.register("username1","password1")
+SCMessenger.register("username1","password1")
 
 # login
-messenger.login("username1","password1")
+messenger = SCMessenger(server_url, username="username1",password="password1")
+
+# Message user2
+messenger.send("username2", "hi")
 ```
 
 - connecting client two
@@ -44,16 +46,15 @@ messenger.login("username1","password1")
 from s2cm.client import SCMessenger
 
 server_url = "http://localhost:5000" # replace with the address of your server 
-messager = SCMessenger(server_url)
 
 # register
-messager.register("username2","password2")
+SCMessenger.register("username2","password2")
 
 # login
-messenger.login("username2","password2")
+messenger = SCMessenger(server_url, username="username2",password="password2")
 
 # once client 1 is connected client 2 can message her
-messenger.send("username1","hi")
+messenger.send("username1","hi too")
 ```
 
 ### Usage in javascript (web page) 
