@@ -9,6 +9,7 @@ import requests
 sio = socketio.Client()
 long_session = None
 
+
 @sio.event
 def connect():
     print("Connected to the server!")
@@ -28,45 +29,48 @@ def response(data):
 def error(data):
     print(f"Error: {data}")
 
-@sio.on('long_session')
-def update_ls(data):
-    global long_session 
-    long_session = data
 
 def callback():
-    print('callback called')
+    print("callback called")
+
 
 class SCMessenger:
-    def __init__(self, server="http://localhost:5000", token=None, username=None, password=None):
+    def __init__(
+        self, server="http://localhost:5000", token=None, username=None, password=None
+    ):
         self.server = server
         self.http_session = requests.Session()
         self.token = token
         if self.token:
-            sio.connect(server,headers={'Authorization':self.token})
+            sio.connect(server, headers={"Authorization": self.token})
 
-        elif self.login(username,password):
-            sio.connect(server,headers={'Authorization':self.token})
+        elif self.login(username, password):
+            sio.connect(server, headers={"Authorization": self.token})
 
     def send(self, message):
         sio.emit("message", message)
 
     def login(self, username, password):
-        res = self.http_session.post(f'{self.server}/login',{"username": username, "password": password})
+        res = self.http_session.post(
+            f"{self.server}/login", {"username": username, "password": password}
+        )
         json_res = res.json()
-        self.token = json_res.get('token')
+        self.token = json_res.get("token")
         return self.token
-        
-
 
     @staticmethod
-    def register(server:str,username:str, password):
-        res = requests.post(f'{server}/register',{"username": username, "password": password})
+    def register(server: str, username: str, password):
+        res = requests.post(
+            f"{server}/register",
+            {"username": username, "password": password},
+            timeout=30,
+        )
         json_res = res.json()
-        if token:=json_res.get('token'):
+        if token := json_res.get("token"):
             return token
 
         else:
-            print('registration failed')
+            print("registration failed")
 
     def send_to_user(self, username, message):
         sio.emit("message_user", {"username": username, "message": message})
@@ -75,4 +79,4 @@ class SCMessenger:
         """
         Resume session using a session id stored locally, if you had logged in
         """
-        sio.emit('login',{"long_session":long_session})
+        sio.emit("login", {"long_session": long_session})

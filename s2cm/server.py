@@ -7,6 +7,7 @@ A small python code to help you notify or message your clients from the server
 import os
 import secrets
 import traceback
+import pathlib
 
 import bcrypt
 from flask import Flask, request, render_template, redirect
@@ -15,7 +16,8 @@ from peewee import SqliteDatabase, Model, CharField, DoesNotExist
 
 
 # Initialize the SQLite database (replace 'db.sqlite3' with your DB path if needed)
-db = SqliteDatabase("db.sqlite3")
+s2cm_home = os.sep.join([str(pathlib.Path.home()), ".s2cm"])
+db = SqliteDatabase(os.sep.join([s2cm_home, "s2cm.sqlite3"]))
 
 
 class BaseModel(Model):
@@ -111,7 +113,7 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/register",methods=['POST'])
+@app.route("/register", methods=["POST"])
 def set_username():
     """Register user"""
     username = request.form.get("username")
@@ -119,13 +121,13 @@ def set_username():
     try:
         user = User.create(username=username, password=User.set_password(password))
         user.save()
-        return redirect('/login')
+        return redirect("/login")
 
     except DoesNotExist as e:
         print(e)
 
 
-@app.route("/login",methods=['POST'])
+@app.route("/login", methods=["POST"])
 def login():
     """Create a session for user"""
     username = request.form.get("username")
@@ -139,7 +141,7 @@ def login():
                 user.long_session = generated_session
                 user.save()
                 print(user.username, "logged in successfully")
-                return {'token':generated_session}
+                return {"token": generated_session}
             else:
                 print(username, "login password failed")
 
@@ -154,7 +156,7 @@ def login():
         else:
             print(f"login failed with username: {username}")
 
-        return 'Failed'
+        return "Failed"
 
 
 @socketio.on("message_user")
@@ -186,7 +188,7 @@ def message_group(data):
 def handle_connect():
     """Called when a user is connect"""
     long_session = request.headers.get("Authorization")
-    print('token:',long_session)
+    print("token:", long_session)
     if long_session:
         try:
             user = User.get(long_session=long_session)
