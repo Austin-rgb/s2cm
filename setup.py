@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 long_description = open("README.md", "r+", encoding="utf-8").read()
 setup(
     name="s2cm",
-    version="0.3.1a",
+    version="0.3.2",
     description="Server to cliet messenger, for notifying clients in a client-server models",
     long_description=long_description,
     long_description_content_type="text/markdown",
