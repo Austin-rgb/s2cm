@@ -1,6 +1,8 @@
 from setuptools import find_packages, setup
 
-long_description = open("README.md", "r+", encoding="utf-8").read()
+long_description = None
+with open("README.md", "r+", encoding="utf-8") as ld:
+    long_description = ld.read()
 setup(
     name="s2cm",
     version="0.3.2",

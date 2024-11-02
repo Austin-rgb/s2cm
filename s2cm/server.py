@@ -6,14 +6,15 @@ A small python code to help you notify or message your clients from the server
 
 import os
 import secrets
-import traceback
 import pathlib
-
+import logging
 import bcrypt
-from flask import Flask, request, render_template, redirect
+from flask import Flask, request, render_template
 from flask_socketio import SocketIO, emit, join_room, leave_room
-from peewee import SqliteDatabase, Model, CharField, DoesNotExist
+from peewee import SqliteDatabase, Model, CharField, DoesNotExist, IntegrityError
 
+LOG_LEVEL = os.environ.get("LOG_LEVEL", logging.INFO)
+logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Initialize the SQLite database (replace 'db.sqlite3' with your DB path if needed)
 S2CM_HOME = os.sep.join([str(pathlib.Path.home()), ".s2cm"])
@@ -37,7 +38,7 @@ class User(BaseModel):
 
     username = CharField(unique=True, max_length=50)
     password = CharField(
-        max_length=100,
+        max_length=32,
     )
     session = CharField(max_length=32, null=True)
     long_session = CharField(max_length=64, null=True)
@@ -67,7 +68,7 @@ db.create_tables(
 
 
 def _using_default(name: str, value):
-    print(
+    logging.info(
         f"""
 using default {name}: {value}
 You can modify by doing "export {name.capitalize()}=[your.prefered.{name}]"'
@@ -122,10 +123,11 @@ def set_username():
     try:
         user = User.create(username=username, password=User.set_password(password))
         user.save()
-        return {'registered':True}
+        return {"registered": True}
 
-    except DoesNotExist as e:
-        print(e)
+    except IntegrityError as e:
+        logging.info(f"Registration of {username} failed, IntegrityError")
+        return {"error": "Username not available"}
 
 
 @app.route("/login", methods=["POST"])
@@ -141,21 +143,22 @@ def login():
                 generated_session = secrets.token_hex(96)
                 user.long_session = generated_session
                 user.save()
-                print(user.username, "logged in successfully")
+                logging.info(f"{username} login success")
                 return {"token": generated_session}
             else:
-                print(username, "login password failed")
+                logging.info(f"{username} login failed, wrong password")
+                return {"error": "Wrong password"}
 
         except DoesNotExist as e:
-            emit("error", str(e))
-            traceback.print_exception(e)
+            logging.info(f"{username} login failed, username not found")
+            return {"error": "Username does not exist"}
 
     else:
         if password:
-            print("login failed with no-username")
+            logging.info("login failed with no-username")
 
         else:
-            print(f"login failed with username: {username}")
+            logging.info(f"login failed with username: {username}")
 
         return "Failed"
 
@@ -172,7 +175,7 @@ def send(msg):
     try:
         user = User.get(username=username)
         socketio.emit("response", payload, to=user.session)
-        print(f"sent message: {message}, to: {username}")
+        logging.info(f"sent message: {message}, to: {username}")
     except DoesNotExist as e:
         emit("error", str(e))
 
@@ -189,17 +192,15 @@ def message_group(data):
 def handle_connect():
     """Called when a user is connect"""
     long_session = request.headers.get("Authorization")
-    print("token:", long_session)
     if long_session:
         try:
             user = User.get(long_session=long_session)
             user.session = request.sid
             user.save()
-            print(user.username, "logged in successfully")
+            logging.info(user.username, "logged in successfully")
 
         except DoesNotExist as e:
-            emit("error", str(e))
-            traceback.print_exception(e)
+            logging.info(f"connect attempt failed, invalid token")
 
 
 @socketio.on("message")
