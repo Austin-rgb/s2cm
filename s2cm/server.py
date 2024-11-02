@@ -16,8 +16,9 @@ from peewee import SqliteDatabase, Model, CharField, DoesNotExist
 
 
 # Initialize the SQLite database (replace 'db.sqlite3' with your DB path if needed)
-s2cm_home = os.sep.join([str(pathlib.Path.home()), ".s2cm"])
-db = SqliteDatabase(os.sep.join([s2cm_home, "s2cm.sqlite3"]))
+S2CM_HOME = os.sep.join([str(pathlib.Path.home()), ".s2cm"])
+os.makedirs(S2CM_HOME, exist_ok=True)
+db = SqliteDatabase(os.sep.join([S2CM_HOME, "s2cm.sqlite3"]))
 
 
 class BaseModel(Model):
