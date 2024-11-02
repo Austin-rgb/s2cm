@@ -39,7 +39,7 @@ class User(BaseModel):
 
     username = CharField(unique=True, max_length=50)
     password = CharField(
-        max_length=100,
+        max_length=32,
     )
     session = CharField(max_length=32, null=True)
     long_session = CharField(max_length=64, null=True)
