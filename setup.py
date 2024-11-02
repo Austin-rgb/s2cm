@@ -5,7 +5,7 @@ with open("README.md", "r+", encoding="utf-8") as ld:
     long_description = ld.read()
 setup(
     name="s2cm",
-    version="0.3.2",
+    version="0.3.4",
     description="Server to cliet messenger, for notifying clients in a client-server models",
     long_description=long_description,
     long_description_content_type="text/markdown",
