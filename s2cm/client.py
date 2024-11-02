@@ -66,7 +66,7 @@ class SCMessenger:
             timeout=30,
         )
         json_res = res.json()
-        if token := json_res.get("token"):
+        if token := json_res.get("registered"):
             return token
 
         else:

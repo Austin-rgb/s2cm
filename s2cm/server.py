@@ -122,7 +122,7 @@ def set_username():
     try:
         user = User.create(username=username, password=User.set_password(password))
         user.save()
-        return redirect("/login")
+        return {'registered':True}
 
     except DoesNotExist as e:
         print(e)
