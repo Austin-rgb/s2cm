@@ -197,7 +197,7 @@ def handle_connect():
             user = User.get(long_session=long_session)
             user.session = request.sid
             user.save()
-            logging.info(user.username, "logged in successfully")
+            logging.info(f"{user.username}, logged in successfully")
 
         except DoesNotExist as e:
             logging.info(f"connect attempt failed, invalid token")
