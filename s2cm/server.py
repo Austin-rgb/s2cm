@@ -69,7 +69,7 @@ db.create_tables(
 
 
 def _using_default(name: str, value):
-    print(
+    logging.info(
         f"""
 using default {name}: {value}
 You can modify by doing "export {name.capitalize()}=[your.prefered.{name}]"'
@@ -144,7 +144,7 @@ def login():
                 generated_session = secrets.token_hex(96)
                 user.long_session = generated_session
                 user.save()
-                print(user.username, "logged in successfully")
+                logging.info(f'{username} login success')
                 return {"token": generated_session}
             else:
                 logging.info(f'{username} login failed, wrong password')
@@ -157,10 +157,10 @@ def login():
 
     else:
         if password:
-            print("login failed with no-username")
+            logging.info("login failed with no-username")
 
         else:
-            print(f"login failed with username: {username}")
+            logging.info(f"login failed with username: {username}")
 
         return "Failed"
 
@@ -177,7 +177,7 @@ def send(msg):
     try:
         user = User.get(username=username)
         socketio.emit("response", payload, to=user.session)
-        print(f"sent message: {message}, to: {username}")
+        logging.info(f"sent message: {message}, to: {username}")
     except DoesNotExist as e:
         emit("error", str(e))
 
@@ -194,17 +194,15 @@ def message_group(data):
 def handle_connect():
     """Called when a user is connect"""
     long_session = request.headers.get("Authorization")
-    print("token:", long_session)
     if long_session:
         try:
             user = User.get(long_session=long_session)
             user.session = request.sid
             user.save()
-            print(user.username, "logged in successfully")
+            logging.info(user.username, "logged in successfully")
 
         except DoesNotExist as e:
-            emit("error", str(e))
-            traceback.print_exception(e)
+            logging.info(f'connect attempt failed, invalid token')
 
 
 @socketio.on("message")
