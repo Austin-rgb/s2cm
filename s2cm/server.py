@@ -8,11 +8,13 @@ import os
 import secrets
 import traceback
 import pathlib
-
+import logging
 import bcrypt
 from flask import Flask, request, render_template, redirect
 from flask_socketio import SocketIO, emit, join_room, leave_room
-from peewee import SqliteDatabase, Model, CharField, DoesNotExist
+from peewee import SqliteDatabase, Model, CharField, DoesNotExist, IntegrityError
+
+LOG_LEVEL = os.environ.get('LOG_LEVEL',logging.INFO)
 
 
 # Initialize the SQLite database (replace 'db.sqlite3' with your DB path if needed)
@@ -124,8 +126,9 @@ def set_username():
         user.save()
         return {'registered':True}
 
-    except DoesNotExist as e:
-        print(e)
+    except IntegrityError as e:
+        logging.info(f'Registration of {username} failed, IntegrityError')
+        return {'error':'Username not available'}
 
 
 @app.route("/login", methods=["POST"])
@@ -144,11 +147,13 @@ def login():
                 print(user.username, "logged in successfully")
                 return {"token": generated_session}
             else:
-                print(username, "login password failed")
+                logging.info(f'{username} login failed, wrong password')
+                return {'error':'Wrong password'}
+                
 
         except DoesNotExist as e:
-            emit("error", str(e))
-            traceback.print_exception(e)
+            logging.info(f'{username} login failed, username not found')
+            return {'error':'Username does not exist'}
 
     else:
         if password:
