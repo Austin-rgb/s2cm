@@ -44,22 +44,25 @@ class SCMessenger:
         if self.token:
             sio.connect(server, headers={"Authorization": self.token})
 
-        elif self.login(username, password):
-            sio.connect(server, headers={"Authorization": self.token})
+        elif token := SCMessenger.login(self.server, username, password):
+            sio.connect(server, headers={"Authorization": token})
 
     def send(self, message):
         sio.emit("message", message)
 
-    def login(self, username, password):
-        res = self.http_session.post(
-            f"{self.server}/login", {"username": username, "password": password}
+    @staticmethod
+    def login(server_url: str, username: str, password: str) -> str | None:
+        res = requests.post(
+            f"{server_url}/login",
+            {"username": username, "password": password},
+            timeout=30,
         )
         json_res = res.json()
-        self.token = json_res.get("token")
-        return self.token
+        token = json_res.get("token")
+        return token
 
     @staticmethod
-    def register(server: str, username: str, password):
+    def register(server: str, username: str, password) -> str | None:
         res = requests.post(
             f"{server}/register",
             {"username": username, "password": password},
@@ -69,8 +72,7 @@ class SCMessenger:
         if token := json_res.get("registered"):
             return token
 
-        else:
-            print("registration failed")
+        print("registration failed")
 
     def send_to_user(self, username, message):
         sio.emit("message_user", {"username": username, "message": message})

@@ -13,11 +13,14 @@ from flask import Flask, request, render_template
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from peewee import SqliteDatabase, Model, CharField, DoesNotExist, IntegrityError
 
+HOME = str(pathlib.Path.home())
+
+
 LOG_LEVEL = os.environ.get("LOG_LEVEL", logging.INFO)
 logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Initialize the SQLite database (replace 'db.sqlite3' with your DB path if needed)
-S2CM_HOME = os.sep.join([str(pathlib.Path.home()), ".s2cm"])
+S2CM_HOME = os.sep.join([HOME, ".s2cm"])
 os.makedirs(S2CM_HOME, exist_ok=True)
 db = SqliteDatabase(os.sep.join([S2CM_HOME, "s2cm.sqlite3"]))
 
