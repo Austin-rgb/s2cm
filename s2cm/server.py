@@ -4,14 +4,16 @@ Server to client messenger
 A small python code to help you notify or message your clients from the server
 """
 
-import os
-import secrets
-import pathlib
 import logging
+import os
+import pathlib
+import secrets
+
 import bcrypt
-from flask import Flask, request, render_template
+from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, join_room, leave_room
-from peewee import SqliteDatabase, Model, CharField, DoesNotExist, IntegrityError
+from peewee import (CharField, DoesNotExist, IntegrityError, Model,
+                    SqliteDatabase)
 
 HOME = str(pathlib.Path.home())
 

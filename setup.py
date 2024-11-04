@@ -9,7 +9,7 @@ setup(
     description="Server to cliet messenger, for notifying clients in a client-server models",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    include_package_data = True,
+    include_package_data=True,
     author="Austine Ochieng",
     author_email="prof.odhiambo.ostinel@gmail.com",
     maintainer="Austin-rgb",

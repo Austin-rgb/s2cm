@@ -2,8 +2,8 @@
 Python client module for s2cm.server
 """
 
-import socketio
 import requests
+import socketio
 
 # Create a Socket.IO client
 sio = socketio.Client()
