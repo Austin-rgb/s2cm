@@ -179,7 +179,7 @@ def send(msg):
     payload["from"] = this_user.username
     try:
         user = User.get(username=username)
-        socketio.emit("response", payload, to=user.session)
+        socketio.emit("private_message", payload, to=user.session)
         logging.info(f"sent message: {message}, to: {username}")
     except DoesNotExist as e:
         emit("error", str(e))
@@ -190,7 +190,7 @@ def message_group(data):
     """Message a group of users"""
     group = data.get("group")
     msg = data.get("message")
-    emit("message", msg, to=group)
+    emit("group_message", msg, to=group)
 
 
 @socketio.on("connect")
