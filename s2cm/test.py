@@ -7,20 +7,28 @@ u2 = rs()
 p1 = rs()
 p2 = rs()
 
-SCMessenger.register('http://localhost:5000',u1,p1)
+token1=SCMessenger.register('http://localhost:5000',u1,p1)
+if token1:
+    print('registration works')
 SCMessenger.register('http://localhost:5000',u2,p2)
 
-s1 = SCMessenger(username=u1,password=p1)
+s1 = SCMessenger(token=token1)
+print('token login works')
 s2 = SCMessenger(username=u2,password=p2)
+print('username/password login works')
 
 msg = rs()
-def handle(data):
-    message = data['message']
+def on_message(message):
     if message==msg:
         print('peer to peer messaging works')
 
     else:
         print('peer to peer messaging failed')
-s1.sio.on('private_message',handle)
-s2.send_to_user(u1,msg)
-s2.sio.wait()
+
+conv1=s2.conversation(u1)
+conv2=s1.conversation(u2)
+conv2.on_message=on_message
+conv1.send(msg)
+
+s1.sio.wait()
+

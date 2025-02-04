@@ -12,7 +12,7 @@ import secrets
 import bcrypt
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, join_room, leave_room
-from peewee import (CharField, DoesNotExist, IntegrityError, Model,
+from peewee import (CharField,BooleanField, DoesNotExist, IntegrityError, Model,
                     SqliteDatabase)
 
 HOME = str(pathlib.Path.home())
@@ -47,6 +47,7 @@ class User(BaseModel):
     )
     session = CharField(max_length=32, null=True)
     long_session = CharField(max_length=64, null=True)
+    active = BooleanField(default=False)
 
     @staticmethod
     def set_password(raw_password: str):
@@ -82,23 +83,19 @@ You can modify by doing "export {name.capitalize()}=[your.prefered.{name}]"'
     )
 
 
-SECRET_KEY = os.environ.get("SECRET_KEY")
-if not SECRET_KEY:
-    SECRET_KEY = secrets.token_hex(32)
+SECRET_KEY = os.getenv("SECRET_KEY",secrets.token_hex(32))
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY
 
-
 active_users = {}
-socketio = SocketIO(app, cors_allowed_origins="*")
-
+socketio = SocketIO(app, cors_allowed_origins="*",logger=True,engineio_logger=True)
 
 # Event for joining a room
 @socketio.on("join")
 def handle_join(data):
     """Adds user to a room"""
-    username = active_users.get(request.sid)
+    username =  User.get(username=username).username
     room = data["room"]
     join_room(room)
     emit("message", {"msg": f"{username} has joined the room."}, room=room)
@@ -119,6 +116,10 @@ def index():
     """S2cm http home page"""
     return render_template("index.html")
 
+@app.route('/status/<sid>')
+def status(sid):
+    user=User.get(session=sid)
+    return {'status':user.active}
 
 @app.route("/register", methods=["POST"])
 def set_username():
@@ -127,8 +128,10 @@ def set_username():
     password = request.form.get("password")
     try:
         user = User.create(username=username, password=User.set_password(password))
+        generated_session = secrets.token_hex(96)
+        user.long_session = generated_session
         user.save()
-        return {"registered": True}
+        return {"token": generated_session}
 
     except IntegrityError as e:
         logging.info(f"Registration of {username} failed, IntegrityError")
@@ -165,7 +168,7 @@ def login():
         else:
             logging.info(f"login failed with username: {username}")
 
-        return "Failed"
+        return {'error':'login failed with no password'}
 
 
 @socketio.on("message_user")
@@ -201,6 +204,7 @@ def handle_connect():
         try:
             user = User.get(long_session=long_session)
             user.session = request.sid
+            user.active = True
             user.save()
             logging.info(f"{user.username}, connected successfully")
 
@@ -219,6 +223,8 @@ def handle_message(msg):
 
 @socketio.on("disconnect")
 def handle_disconnect():
+    user=User.get(session=request.sid)
+    user.active=False
     """TODO"""
 
 
