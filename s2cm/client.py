@@ -9,9 +9,6 @@ import socketio
 
 long_session = None
 
-
-
-
 def callback():
     print("callback called")
 
@@ -20,15 +17,17 @@ class SCMessenger:
     def __init__(
         self, server="http://localhost:5000", token=None, username=None, password=None
     ):
-        self.sio=socketio.Client()
+        self.sio=socketio.Client(logger=True,engineio_logger=True)
+        self.sio.on('connect',self.on_connect)
+        self.sio.on('disconnect',self.on_disconnected)
         self.server = server
         self.http_session = requests.Session()
         self.token = token
         if self.token:
-            self.sio.connect(server, headers={"Authorization": self.token})
+            self.sio.connect(server, headers={"Authorization": self.token},transports=['websocket'])
 
         elif token := SCMessenger.login(self.server, username, password):
-            self.sio.connect(server, headers={"Authorization": token})
+            self.sio.connect(server, headers={"Authorization": token},transports=['websocket'])
 
     def send(self, message):
         self.sio.emit("message", message)
@@ -65,4 +64,10 @@ class SCMessenger:
         Resume session using a session id stored locally, if you had logged in
         """
         self.sio.emit("login", {"long_session": long_session})
+
+    def on_connect(self):
+        print('connected')
+
+    def on_disconnected(self):
+        print('disconnected')
         

@@ -202,11 +202,14 @@ def handle_connect():
             user = User.get(long_session=long_session)
             user.session = request.sid
             user.save()
-            logging.info(f"{user.username}, logged in successfully")
+            logging.info(f"{user.username}, connected successfully")
 
         except DoesNotExist as e:
             logging.info(f"connect attempt failed, invalid token")
 
+@socketio.on('disconnect')
+def handle_disconnect():
+    print("Client disconnected unexpectedly")
 
 @socketio.on("message")
 def handle_message(msg):

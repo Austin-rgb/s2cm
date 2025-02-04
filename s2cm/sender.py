@@ -1,6 +1,5 @@
 import requests as req
 
-
 class SCMSender:
     def __init__(self, server_url, sender_session):
         self.session = req.sessions.Session()
